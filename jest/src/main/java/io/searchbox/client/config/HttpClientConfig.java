@@ -39,6 +39,7 @@ public class HttpClientConfig extends ClientConfig {
     private final AuthenticationStrategy proxyAuthenticationStrategy;
     private final SchemeIOSessionStrategy httpIOSessionStrategy;
     private final SchemeIOSessionStrategy httpsIOSessionStrategy;
+    private HttpHost preemptiveAuthTargetHost;
 
     public HttpClientConfig(Builder builder) {
         super(builder);
@@ -52,6 +53,7 @@ public class HttpClientConfig extends ClientConfig {
         this.proxyAuthenticationStrategy = builder.proxyAuthenticationStrategy;
         this.httpIOSessionStrategy = builder.httpIOSessionStrategy;
         this.httpsIOSessionStrategy = builder.httpsIOSessionStrategy;
+        this.preemptiveAuthTargetHost = builder.preemptiveAuthTargetHost;
     }
 
     public Map<HttpRoute, Integer> getMaxTotalConnectionPerRoute() {
@@ -94,6 +96,10 @@ public class HttpClientConfig extends ClientConfig {
         return httpsIOSessionStrategy;
     }
 
+    public HttpHost getPreemptiveAuthTargetHost() {
+        return preemptiveAuthTargetHost;
+    }
+
     public static class Builder extends ClientConfig.AbstractBuilder<HttpClientConfig, Builder> {
 
         private Integer maxTotalConnection;
@@ -106,6 +112,7 @@ public class HttpClientConfig extends ClientConfig {
         private AuthenticationStrategy proxyAuthenticationStrategy;
         private SchemeIOSessionStrategy httpIOSessionStrategy;
         private SchemeIOSessionStrategy httpsIOSessionStrategy;
+        private HttpHost preemptiveAuthTargetHost;
 
         public Builder(HttpClientConfig httpClientConfig) {
             super(httpClientConfig);
@@ -231,6 +238,19 @@ public class HttpClientConfig extends ClientConfig {
             return this;
         }
 
+        /**
+         * Sets preemptive authentication for the specified <b>target host</b> by pre-populating an authentication data cache
+         * <p>
+         * It is mandatory to set a credential provider to use preemptive authentication
+         * </p><p>
+         * If preemptive authentication is set without setting a credentials provider an exception will be thrown
+         * </p>
+         */
+        public Builder setPreemptiveAuth(HttpHost targetHost) {
+            this.preemptiveAuthTargetHost = targetHost;
+            return this;
+        }
+
         public Builder proxy(HttpHost proxy) {
             return proxy(proxy, null);
         }
@@ -246,19 +266,26 @@ public class HttpClientConfig extends ClientConfig {
             if (this.sslSocketFactory == null) {
                 this.sslSocketFactory = SSLConnectionSocketFactory.getSocketFactory();
             }
-            if(this.plainSocketFactory == null) {
+            if (this.plainSocketFactory == null) {
                 this.plainSocketFactory = PlainConnectionSocketFactory.getSocketFactory();
             }
-            if(this.httpRoutePlanner == null) {
+            if (this.httpRoutePlanner == null) {
                 this.httpRoutePlanner = new SystemDefaultRoutePlanner(ProxySelector.getDefault());
             }
-            if(this.httpIOSessionStrategy == null) {
+            if (this.httpIOSessionStrategy == null) {
                 this.httpIOSessionStrategy = NoopIOSessionStrategy.INSTANCE;
             }
-            if(this.httpsIOSessionStrategy == null) {
+            if (this.httpsIOSessionStrategy == null) {
                 this.httpsIOSessionStrategy = SSLIOSessionStrategy.getSystemDefaultStrategy();
             }
+            if (preemptiveAuthSetWithoutCredentials()) {
+                throw new IllegalArgumentException("Preemptive authentication set without credentials provider");
+            }
             return new HttpClientConfig(this);
+        }
+
+        private boolean preemptiveAuthSetWithoutCredentials() {
+            return preemptiveAuthTargetHost != null && credentialsProvider == null;
         }
 
     }

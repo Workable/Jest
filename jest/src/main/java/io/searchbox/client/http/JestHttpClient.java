@@ -1,20 +1,16 @@
 package io.searchbox.client.http;
 
+import com.google.gson.Gson;
 import io.searchbox.action.Action;
 import io.searchbox.client.AbstractJestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.JestResultHandler;
 import io.searchbox.client.http.apache.HttpDeleteWithEntity;
 import io.searchbox.client.http.apache.HttpGetWithEntity;
-import java.io.IOException;
-import java.util.Map.Entry;
-
 import org.apache.http.*;
 import org.apache.http.client.entity.EntityBuilder;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.*;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -22,7 +18,10 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.gson.Gson;
+
+import java.io.IOException;
+import java.util.Map.Entry;
+import java.util.concurrent.Future;
 
 /**
  * @author Dogukan Sonmez
@@ -37,6 +36,8 @@ public class JestHttpClient extends AbstractJestClient {
     private CloseableHttpClient httpClient;
     private CloseableHttpAsyncClient asyncClient;
 
+    private HttpClientContext httpClientContextTemplate;
+
     /**
      * @throws IOException in case of a problem or the connection was aborted during request,
      *                     or in case of a problem while reading the response stream
@@ -44,7 +45,7 @@ public class JestHttpClient extends AbstractJestClient {
     @Override
     public <T extends JestResult> T execute(Action<T> clientRequest) throws IOException {
         HttpUriRequest request = prepareRequest(clientRequest);
-        HttpResponse response = httpClient.execute(request);
+        HttpResponse response = executeRequest(request);
 
         return deserializeResponse(response, request, clientRequest);
     }
@@ -58,7 +59,7 @@ public class JestHttpClient extends AbstractJestClient {
         }
 
         HttpUriRequest request = prepareRequest(clientRequest);
-        asyncClient.execute(request, new DefaultCallback<T>(clientRequest, request, resultHandler));
+        executeAsyncRequest(clientRequest, resultHandler, request);
     }
 
     @Override
@@ -88,6 +89,30 @@ public class JestHttpClient extends AbstractJestClient {
         }
 
         return request;
+    }
+
+    protected CloseableHttpResponse executeRequest(HttpUriRequest request) throws IOException {
+        if (httpClientContextTemplate != null) {
+            return httpClient.execute(request, createContextInstance());
+        }
+
+        return httpClient.execute(request);
+    }
+
+    protected <T extends JestResult> Future<HttpResponse> executeAsyncRequest(Action<T> clientRequest, JestResultHandler<? super T> resultHandler, HttpUriRequest request) {
+        if (httpClientContextTemplate != null) {
+            return asyncClient.execute(request, createContextInstance(), new DefaultCallback<T>(clientRequest, request, resultHandler));
+        }
+
+        return asyncClient.execute(request, new DefaultCallback<T>(clientRequest, request, resultHandler));
+    }
+
+    protected HttpClientContext createContextInstance() {
+        HttpClientContext context = HttpClientContext.create();
+        context.setCredentialsProvider(httpClientContextTemplate.getCredentialsProvider());
+        context.setAuthCache(httpClientContextTemplate.getAuthCache());
+
+        return context;
     }
 
     protected HttpUriRequest constructHttpMethod(String methodName, String url, String payload) {
@@ -150,6 +175,14 @@ public class JestHttpClient extends AbstractJestClient {
 
     public CloseableHttpClient getHttpClient() {
         return httpClient;
+    }
+
+    public HttpClientContext getHttpClientContextTemplate() {
+        return httpClientContextTemplate;
+    }
+
+    public void setHttpClientContextTemplate(HttpClientContext httpClientContext) {
+        this.httpClientContextTemplate = httpClientContext;
     }
 
     public void setHttpClient(CloseableHttpClient httpClient) {

@@ -3,7 +3,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.searchbox</groupId>
+    <groupId>io.searchbox.workable</groupId>
     <artifactId>jest-parent</artifactId>
     <packaging>pom</packaging>
     <version>1.0.3-SNAPSHOT</version>
@@ -89,6 +89,13 @@
     </properties>
     <build>
         <defaultGoal>install</defaultGoal>
+        <extensions>
+            <extension>
+                <groupId>org.springframework.build</groupId>
+                <artifactId>aws-maven</artifactId>
+                <version>5.0.0.RELEASE</version>
+            </extension>
+        </extensions>
         <plugins>
 
             <plugin>
@@ -253,7 +260,7 @@
             </dependency>
 
             <dependency>
-                <groupId>io.searchbox</groupId>
+                <groupId>io.searchbox.workable</groupId>
                 <artifactId>jest-common</artifactId>
                 <version>1.0.3-SNAPSHOT</version>
             </dependency>
@@ -359,6 +366,27 @@
     </dependencyManagement>
 
     <profiles>
+        <profile>
+            <id>deployer</id>
+            <activation>
+                <property>
+                    <name>deployer</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <distributionManagement>
+                <repository>
+                    <id>aws-release</id>
+                    <name>AWS Release Repository</name>
+                    <url>s3://workable-private-repo/release</url>
+                </repository>
+                <snapshotRepository>
+                    <id>aws-snapshot</id>
+                    <name>AWS Snapshot Repository</name>
+                    <url>s3://workable-private-repo/snapshot</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
         <profile>
             <id>integration-test</id>
             <activation>

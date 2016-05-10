@@ -43,7 +43,7 @@
     </developers>
 
     <parent>
-        <groupId>io.searchbox</groupId>
+        <groupId>io.searchbox.workable</groupId>
         <artifactId>jest-parent</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
