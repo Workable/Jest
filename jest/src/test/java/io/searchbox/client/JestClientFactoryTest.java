@@ -3,9 +3,14 @@ package io.searchbox.client;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.client.http.JestHttpClient;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.routing.HttpRoute;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
@@ -88,5 +93,25 @@ public class JestClientFactoryTest {
         assertEquals(20, ((PoolingNHttpClientConnectionManager) nConnectionManager).getMaxTotal());
         assertEquals(5, ((PoolingNHttpClientConnectionManager) nConnectionManager).getMaxPerRoute(routeOne));
         assertEquals(6, ((PoolingNHttpClientConnectionManager) nConnectionManager).getMaxPerRoute(routeTwo));
+    }
+
+    @Test
+    public void clientCreationWithPreemptiveAuth() {
+        JestClientFactory factory = new JestClientFactory();
+        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("someUser", "somePassword"));
+        HttpHost targetHost = new HttpHost("targetHostName", 80, "http");
+
+        HttpClientConfig httpClientConfig = new HttpClientConfig.Builder("someUri")
+                .credentialsProvider(credentialsProvider)
+                .setPreemptiveAuth(targetHost)
+                .build();
+
+        factory.setHttpClientConfig(httpClientConfig);
+        JestHttpClient jestHttpClient = (JestHttpClient) factory.getObject();
+        HttpClientContext httpClientContext = jestHttpClient.getHttpClientContextTemplate();
+
+        assertNotNull(httpClientContext.getAuthCache().get(targetHost));
+        assertEquals(credentialsProvider, httpClientContext.getCredentialsProvider());
     }
 }
