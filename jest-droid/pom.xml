@@ -51,7 +51,7 @@
     <dependencies>
 
         <dependency>
-            <groupId>io.searchbox</groupId>
+            <groupId>io.searchbox.workable</groupId>
             <artifactId>jest-common</artifactId>
         </dependency>
 
